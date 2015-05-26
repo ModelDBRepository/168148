@@ -1,0 +1,323 @@
+//######################################
+//  						    
+//  util.hoc
+//  -------------
+//
+// Several function to work with LayerVrun                      
+//  							
+//  Author: Konstantin Stadler
+//  Version: 20131108
+//  							
+//######################################
+// 
+/*******************************************************************
+ **             implemented functions and procedures              **
+*******************************************************************/
+/*
+ 	start() PROC
+        opens most used windows to visualize the model run
+        inits a pointprocessmanager on the default section
+        optional parameter: Tstop
+
+    CCIV()
+        runs a cciv on the default section
+        parameter: CCIV(time_start, time_step, current_start, number_steps, step_size, save)
+        save ... 0 for don't save, otherwise yes
+
+    CCIVstand()
+        starts the CCIV() with standard parameter:
+            50ms start time without input current
+            1000ms stps from -0.3 to 0.7 nA with 50 pA step size
+            Result are saved in CCIVprot.txt and CCIV_AP.txt 
+*/
+
+
+/*******************************************************************
+ **             General objectref and global variables            **
+*******************************************************************/
+
+//general
+
+	objectvar StartDefaultSection	//pointer to the access section at start
+	StartDefaultSection = new SectionRef()
+
+//start
+	
+	objectvar save_window_, ocbox_
+	objectvar scene_vector_[7]
+
+//record time
+
+	objectvar Time
+	Time = new Vector()
+	Time.record(&t)			//saves the time of the current simulation
+
+//record execution time
+	objref ParaCont
+	ParaCont      = new ParallelContext()
+	CalcTimeStart = 0
+	CalcTimeEnd   = 0
+//CCIV
+
+ 	objref IStim, AktPotCount   //pointmechnismen
+  	objref IGraph, APGraph	  //graphs
+  	objref ErgList, APVec, RecGes, SaveMatrix, ErgFile  //lists,files and matrices to save data
+  	strdef SaveFile, SaveFile_AP  //SaveFile 's for the data, _AP for f/I
+
+/*******************************************************************
+ **             procedures                                        **
+ *******************************************************************/
+
+proc start() { 	//opens most used windows to visualize the model run
+	
+	ExpTime = 2000 		// duration of experiment in ms if not given as parameter
+    dt = 0.025 
+
+	if (numarg()>0)	{
+		  ExpTime=$1
+		}
+    if (numarg()>1)	{
+        dt=$2
+    }
+	//init PointProcessManager
+    
+		{
+		load_file("pointman.hoc")
+		}
+				
+		{
+		StartDefaultSection ocbox_ = new PointProcessManager(0)
+		}
+		{
+		ocbox_ = ocbox_.v1
+		ocbox_.map("PointProcessManager", 300, 654, 222.3, 371.7)
+		}
+		objref ocbox_
+	//end init PointProcessManager
+
+	//RunControl
+			
+		xpanel("RunControl", 0)
+		v_init = -78
+		xvalue("Init","v_init", 1,"stdinit()", 1, 1 )
+		xbutton("Init & Run","run()")
+		xbutton("Stop","stoprun=1")
+		runStopAt = 5
+		xvalue("Continue til","runStopAt", 1,"{continuerun(runStopAt) stoprun=1}", 1, 1 )
+		runStopIn = 1
+		xvalue("Continue for","runStopIn", 1,"{continuerun(t + runStopIn) stoprun=1}", 1, 1 )
+		xbutton("Single Step","steprun()")
+		t = 0
+		xvalue("t","t", 2 )
+		tstop = ExpTime
+		xvalue("Tstop","tstop", 1,"tstop_changed()", 0, 1 )
+		xvalue("dt","dt", 1,"setdt()", 0, 1 )
+		steps_per_ms = 1/dt
+		xvalue("Points plotted/ms","steps_per_ms", 1,"setdt()", 0, 1 )
+		screen_update_invl = 0.05
+		xvalue("Scrn update invl","screen_update_invl", 1,"", 0, 1 )
+		realtime = 0
+		xvalue("Real Time","realtime", 0,"", 0, 1 )
+		xpanel(1,654)
+	//end Runcontrol
+	
+	//misc windows and graphs
+		{
+		save_window_ = new Graph(0)
+		save_window_.size(0,4200,-100,20)
+		scene_vector_[3] = save_window_
+		{save_window_.view(0, -100, ExpTime, 120, 819, 0, 602, 172)}
+		graphList[0].append(save_window_)
+		save_window_.save_name("graphList[0].")
+		save_window_.addexpr("v(.5)", 1, 1, 0.8, 0.9, 2)
+        save_window_.label(0.1, 0.9, "Voltage at soma", 2, 1, 0, 0, 1)
+		}
+
+		{
+		save_window_ = new Graph(0)
+		save_window_.size(0,4200,-100,20)
+		scene_vector_[4] = save_window_
+		{save_window_.view(0, -100, ExpTime, 120, 819, 310, 602, 172)}
+		graphList[0].append(save_window_)
+		save_window_.save_name("graphList[0].")
+		save_window_.addexpr("dend1[184].v(0.5)", 1, 1, 0.8, 0.9, 2) //dendrite 600 um from soma
+		save_window_.addexpr("dend1[669].v(0.5)", 1, 1, 0.8, 0.9, 2) //dendrite 1000um from soma
+        save_window_.label(0.1, 0.9, "Voltage at dendrites 600um and 1000um from soma", 2, 1, 0, 0, 1)
+		}
+ 
+  		{
+  		save_window_ = new PlotShape(0)
+  		save_window_.size(-620.785,410.235,-148.192,925.442)
+  		save_window_.variable("v")
+        /*save_window_.exec_menu("Shape Plot")*/
+  		scene_vector_[5] = save_window_
+  		{save_window_.view(-620.785, -148.192, 1031.02, 1073.63, 817, 617, 372.6, 388)}
+  		fast_flush_list.append(save_window_)
+        scene_vector_[5].exec_menu("Shape Plot")
+  		}
+  		
+	//end misc windows
+
+}
+
+func CCIV() { local tStart, tStep, IStartStep, Steps, Stepsize localobj Prot
+    // Simulation of a CCIV with IClamp on the access section with AP plot
+    // parameters:
+    //  Required:
+    //		 TimeStart, TimeStep, IStartStep,
+    //		 Steps, Stepsize, Save(0...no, else yes)
+    //  Optional:
+    //		 SaveFile, SaveFile_AP
+    //
+    // returns:
+    //  -99 in case of errors
+    //  1 otherwise
+      	
+      	CalcTimeStart = ParaCont.time()
+      	
+      	if (numarg()<6) {
+            print "Wrong parameter..."
+            print "Required:"
+    		print "TimeStart, TimeStep, IStartStep,"
+    		print "Steps, Stepsize, Save(0...no, else yes)"
+            print "Optional:"
+    		print "SaveFile, SaveFile_AP"
+    		return -99
+    	}
+    
+    	if (numarg()>6) {
+  				SaveFile = $s7
+  	} else {
+  				SaveFile = "CCIVprot.txt"	
+  	}
+  	  	
+  	if (numarg()==8) {
+  				SaveFile_AP = $s8
+  	} else {
+  				SaveFile_AP = "CCIV_AP.txt"	
+  	}
+  	
+  	    
+    	tStart= $1
+    	tStep = $2
+    	IStartStep = $3
+    	Steps = $4
+    	Stepsize = $5
+    	
+    	if (tStart<0 || tStep<=0 || Steps <0 ) {
+    		print "Wrong parameter: times and steps must be positive"
+    		return -99
+    	}
+     
+     	if ( (tStart+tStep) > tstop ) {
+     		print "experiment time shorter than pulse"
+     		return -99
+     	}
+      	
+     	IStim = new IClamp(.5)
+     	AktPotCount = new APCount(.5)
+
+        RecGes = new Vector()
+        ErgList = new List()
+
+        APVec = new Vector(Steps+1)
+        Prot = new Vector(Steps+1)  //Saves the currents for the APGraph
+
+        IStim.del = tStart   //start with I=0
+        IStim.dur = tStep    //duration of the step
+
+        Min=0
+        Max=0		//saves max and min for visualization
+     	
+     	print "CCIV calculation..."
+     	
+     	for i=0, Steps {
+     	
+     		IStim.amp = IStartStep + i*Stepsize
+     		
+     		print "\nStep ", i, "of ", Steps
+     		print "Input current: ", IStim.amp, " nA"
+ 		
+    		RecGes.record(&v(.5)) //voltage on the access section
+ 		
+    		run()
+ 		
+    		ErgList.append(RecGes.c)  //Copy of the result vector
+    		APVec.x[i] = AktPotCount.n()
+    		Prot.x[i] = IStim.amp
+ 		
+    		if (RecGes.min() < Min) Min = RecGes.min()
+    		if (RecGes.max() > Max) Max = RecGes.max()
+      	}
+  	
+  	print "\nCalculation finished, visualization:"
+  
+  	IGraph = new Graph(0)		
+
+ 	IGraph.view(0, Min, tstop, (Max-Min), 720, 720, 500, 150)  
+  		// draws it on the screen (Axenskalierung: (Start, ymin, Ende, ymax=ymin+value)
+  		// in a window with user-specified location (5th and 6th args)
+  		// and size (last 2 args) 
+ 
+ 	for i=0, ErgList.count()-1 {
+ 
+ 	ErgList.o(i).plot(IGraph, Time)
+ 		//Time vector as specified in general objectref at the beginning of that .hoc 
+    	
+    	IGraph.label(0.8, 0.8, "Voltage", 2, 1, 0, 0, 1)
+
+ 	}
+ 	
+ 	APGraph = new Graph(0)		//Plot of the FI curve
+ 	APGraph.view(IStartStep,0,abs(IStartStep)+i*Stepsize,APVec.max(),10,350,200,200)
+ 	APVec.plot(APGraph, Prot)
+ 	APGraph.label(0.8, 0.8, "F/I", 2, 1, 0, 0, 1)
+ 	 	
+ 	if ($6!=0) {		//6. parameter determines of the data will be saved
+		
+		print "Save..."
+	
+		SaveMatrix = new Matrix()
+		
+		SaveMatrix.resize(Time.size(),ErgList.count()+1) 
+     		SaveMatrix.setcol(0,Time)
+       
+     		for i=0, ErgList.count()-1 SaveMatrix.setcol(1+i, ErgList.o(i))
+    	     
+	   //save to file
+				
+		ErgFile = new File()
+		ErgFile.wopen(SaveFile)
+		SaveMatrix.fprint(ErgFile, "%-e ")
+              	ErgFile.close()		
+		
+		ErgFile = new File()
+		ErgFile.wopen(SaveFile_AP)
+		APVec.printf(ErgFile)
+		ErgFile.close()
+				
+		print "**Saved**"
+	}
+	
+	IStim.del = 1e9	    //wait 'eternally' for the next CCIV
+ 	
+ 	CalcTimeEnd = ParaCont.time()
+ 	print "\nCCIV protocol finished"
+	print " Duration: ", CalcTimeEnd - CalcTimeStart," s" 
+	return 1
+}
+  
+proc CCIVstand() {	//CCIV with standard parameters
+                    //50 ms init, 1000 ms step, starts at -300 pA, 20 steps a 50 pA
+                    //Result are saved in CCIVprot.txt and CCIV_AP.txt
+  	
+  	SaveFile = "CCIVprot.txt"
+  	SaveFile_AP = "CCIV_AP.txt"
+  	if (numarg() > 0) SaveFile=$s1
+  	if (numarg() > 1) SaveFile_AP=$s2
+  	print SaveFile, SaveFile_AP
+  	CCIV(50, 1000, -0.3, 20, 0.05, 1, SaveFile, SaveFile_AP)
+}
+
+
+

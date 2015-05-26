@@ -1,0 +1,126 @@
+//######################################
+//  						    
+//  LayerVrun.hoc		
+//  -------------
+//
+// Main hoc to start the model
+//  							
+//  Author: Konstantin Stadler
+//  Version: 20131108
+//  							
+//######################################
+//
+// Loads the morphology and ion channels distributions
+//
+// Morphology based on Ri18 from Stuart and Spruston 1998 (Ri18geo.hoc):
+//      http://senselab.med.yale.edu/modeldb/showmodel.asp?model=3677
+//      PMID: 9570781 
+//      
+// The naming of sections in Ri18 is somehow confusing...
+// This routine summarises the sections into lists:
+//
+//  -  SectionList Axon: the axon
+//  -  SectionList SomaDend: everything except the axon
+//  -  SectionList Soma: the Soma
+//  -  SectionList ApikalDend: apical dendrite
+//  -  Array ApikalTrunk: trunk part of the apical dendrite
+//
+// *Default accessed section*: dend1[21]
+//      That's the middle of the soma  
+//
+// ************************************************************************** //
+// ************************************************************************** //
+
+load_file("nrngui.hoc")
+
+// --- Morphology ---
+xopen("./geo/Ri18geo.hoc")	// Morphology based on Stuar&Spruston 1998 (Age: P21)
+objref ApikalDend, Soma, SomaDend, Axon
+
+ApikalDend = new SectionList()
+dend1[28] ApikalDend.subtree()
+			
+
+Soma = new SectionList()
+for i = 14,27 dend1[i] {Soma.append()}
+
+SomaDend = new SectionList()
+dend1[14] SomaDend.subtree()
+
+Axon = new SectionList()
+axon Axon.append()
+soma Axon.append()
+for i=0,13 dend1[i]  {Axon.append()}
+
+double ApikalTrunk[46]  
+ApikalTrunk[ 0 ]= 29
+ApikalTrunk[ 1 ]= 30
+ApikalTrunk[ 2 ]= 31
+ApikalTrunk[ 3 ]= 32
+ApikalTrunk[ 4 ]= 43
+ApikalTrunk[ 5 ]= 44
+ApikalTrunk[ 6 ]= 47
+ApikalTrunk[ 7 ]= 71
+ApikalTrunk[ 8 ]= 72
+ApikalTrunk[ 9 ]= 108
+ApikalTrunk[ 10 ]= 109
+ApikalTrunk[ 11 ]= 110
+ApikalTrunk[ 12 ]= 111
+ApikalTrunk[ 13 ]= 112
+ApikalTrunk[ 14 ]= 126
+ApikalTrunk[ 15 ]= 161
+ApikalTrunk[ 16 ]= 164
+ApikalTrunk[ 17 ]= 165
+ApikalTrunk[ 18 ]= 171
+ApikalTrunk[ 19 ]= 172
+ApikalTrunk[ 20 ]= 173
+ApikalTrunk[ 21 ]= 174
+ApikalTrunk[ 22 ]= 175
+ApikalTrunk[ 23 ]= 176
+ApikalTrunk[ 24 ]= 177
+ApikalTrunk[ 25 ]= 178
+ApikalTrunk[ 26 ]= 179
+ApikalTrunk[ 27 ]= 180
+ApikalTrunk[ 28 ]= 181
+ApikalTrunk[ 29 ]= 182
+ApikalTrunk[ 30 ]= 183
+ApikalTrunk[ 31 ]= 184
+ApikalTrunk[ 32 ]= 185
+ApikalTrunk[ 33 ]= 186
+ApikalTrunk[ 34 ]= 187
+ApikalTrunk[ 35 ]= 188
+ApikalTrunk[ 36 ]= 197
+ApikalTrunk[ 37 ]= 198
+ApikalTrunk[ 38 ]= 199
+ApikalTrunk[ 39 ]= 200
+ApikalTrunk[ 40 ]= 201
+ApikalTrunk[ 41 ]= 202
+ApikalTrunk[ 42 ]= 203
+ApikalTrunk[ 43 ]= 204
+ApikalTrunk[ 44 ]= 206
+ApikalTrunk[ 45 ]= 207
+
+
+// --- Mechanism ---
+xopen("./LayerVinit.hoc")
+
+init_General()
+
+init_AxonParameter()
+init_SomaParameter()
+init_DendParameter()	
+
+init_Axon()
+init_Soma()
+init_Dend()		
+
+init_Volt()		
+
+
+print " Layer V - Ri18 successfully built\n"
+
+access dend1[21]	//soma
+
+load_file("./sub/util.hoc")
+load_file("./sub/OwnInit.hoc")
+load_file("./sub/ReducExp.hoc")

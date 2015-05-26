@@ -1,0 +1,717 @@
+//######################################
+//  						    
+//  LayerVinit.hoc		
+//  --------------
+//
+// Assign general and channel parameters for the Layer V neuron
+//  							
+//  Author: Konstantin Stadler
+//  Version: 20131108
+//  							
+//######################################
+//	
+// This file consists of two parts:
+//
+//  1) Parameter
+//     All numerical values necessary for the model
+//
+//  2) Allocation
+//     Conversion of units (as required by the mod files) 
+//     Allocating channel properties  
+
+
+// ************************************************************************** //
+// ************************************************************************** //
+// 1) Parameter
+// ************************************************************************** //
+// ************************************************************************** //
+
+
+  //---------------------------------------------------------------------------
+  // General parameters
+  //---------------------------------------------------------------------------
+
+  proc init_General() { local RmPoint, dis
+		
+	celsius    = 32
+	Ri         = 68.022
+	Cm         = 1.5431
+	
+    // parameters for the value of Rm along the dendrites
+	RmSoma     = 34963
+	RmEnd      = 5357
+	RmHalfd    = 405.84
+	RmSteep    = 50
+			
+	v_init     = -89    // Junction potential corrected RMP under ZD 7288, Kole 2006 (PMID: 16467515)
+		
+	spinescale = 2.0    // scale total area to account for spines
+						
+	forall {
+		Ra=Ri
+			
+		insert pas {
+            g_pas = 1/RmSoma
+            cm    = Cm
+		}
+		insert cad
+	}	
+	
+	access dend1[21]        //That's the soma	
+	distance()
+	
+	for i=0,1090 {	    //Rm is distributed sigmoidal (Stuart and Spruston 1998, PMID: 9570781)
+	      dend1[i] {  
+		  dis     = distance(0)
+		  RmPoint = RmEnd+(RmSoma-RmEnd)/(1+exp((dis-RmHalfd)/RmSteep))
+		  g_pas   = 1/RmPoint
+		}
+	}
+  }
+
+  // --------------------------------------------------------------------------
+  // Specific parameters, all in pS/um2 
+  //---------------------------------------------------------------------------
+	
+  proc init_AxonParameter() {	
+	
+	g_Nax_Axon    = 3500       
+	temp_Nax_Axon = 23  
+							
+	g_KV_Axon     = 40  
+	temp_KV_Axon  = 23
+
+	g_KM_Axon     = 50          
+	temp_KM_Axon  = 35          
+
+	vHact_KM_Axon = -27
+	vHtau_KM_Axon = -29 
+    }
+
+  proc init_SomaParameter() {
+		
+		g_Na_Soma      = 420
+		temp_Na_Soma   = 23
+		
+		g_Nap_Soma     = 10
+		g_KV_Soma      = 20
+		temp_KV_Soma   = 23
+					
+		g_KM_Soma      = 10
+		temp_KM_Soma   = 35
+				
+		vHact_KM_Soma  = vHact_KM_Axon
+		vHtau_KM_Soma  = vHact_KM_Axon
+
+		g_KAprox_Soma  = 150
+		g_KAdist_Soma  = 0
+		temp_KA_Soma   = 23
+	
+		g_KBK_Soma     = 0.6
+		
+		g_CaHVA_Soma   = 2
+		g_CaLVA_Soma   = 0
+				
+		temp_Ca_Soma   = 23
+		
+		g_HCN_Soma     = 0.95
+				
+		pHCN1_Soma     = 0.67
+		Vrev_HCN_Soma  = -45
+			
+		Vhakt_HCN_Soma = -100
+		k_HCN_Soma     = -10
+		Vhtau_HCN_Soma = -100
+		temp_HCN_Soma  = 24
+
+		a0t_hcn1_Soma  = 0.00102
+		a0t_hcn2_Soma  = 0.00022
+  }
+
+  proc init_DendParameter() {	
+    // capacitance 
+	cm_Dend_Dist = Cm*spinescale
+	cm_Dend_Prox = Cm    
+	
+    // Na channel
+	g_Na_ApiDendProx = 350
+	g_Na_ApiDendDist = 320 
+				  
+	  temp_Na_Dend=23
+	
+	g_Na_BasDendStart = 150
+	Na_BasRedFaktor = 0.5
+				    
+    // KV channel
+	g_KV_DendStart = g_KV_Soma 
+	g_KV_DendEnd = g_KV_Soma/17.2   
+	KV_DendDecFac = 80    
+	  temp_KV_Dend = 21	
+
+    // Km channel
+	g_KM_DistDend = 0 
+	  temp_KM_Dend = temp_KM_Soma //=35	
+	  vHact_KM_Dend = vHact_KM_Axon
+  	  vHtau_KM_Dend = vHact_KM_Axon	
+  	  	
+    // KA channels - following Acker & Antic 2009
+	KA_ProRed = 1/300           // reduction factor for the proximal KA channel type
+
+	KA_BasIncFaktor = 0.7       // increase factor for the KA density of basal dendrites
+
+	g_KA_BasDendStart = 150     // start density basal dendrites
+	g_KA_Max = 2000             // maximal possible value
+	g_KA_ApiDend = 300          // density for apical dendrites
+	temp_KA_Dend = temp_KA_Soma 
+
+    // BK channels			
+	g_KBK_Dend = g_KBK_Soma    
+	
+    // ca channels	
+	g_CaHVA_DistDend = 2   
+	g_CaLVA_DistDend = 0.5 
+	  temp_Ca_Dend=temp_Ca_Soma //=23	
+		
+    // HCN, distribution based on Kole 2006 
+ 	g_HCN_DendStart = g_HCN_Soma         // HCN density at the begin of the dendrites
+	g_HCN_DendEnd = 40 * g_HCN_DendStart // HCN density at the end of the dendrites
+	HCN_DendLambda = 323	             // steepness of the HCN increase, Kole 2006 (PMID: 16467515)
+	
+	pHCN1_Dend=0.67		                 //share of HCN1 
+
+	Vrev_HCN_Dend = -45                  // reversal potential
+
+	Vhakt_HCN_Dend =  Vhakt_HCN_Soma
+	k_HCN_Dend = k_HCN_Soma
+	Vhtau_HCN_Dend = -100
+	  temp_HCN_Dend=temp_HCN_Soma 
+	
+	a0t_hcn1_Dend = a0t_hcn1_Soma
+  	a0t_hcn2_Dend = a0t_hcn2_Soma
+	  
+    //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    // the 1st 100 um of the apical trunk and the 1st 20 um of the basals 
+    // only if these values differ from the above, overwrites the former
+    //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+     
+    g_KM_ProxDend = 5
+    g_CaHVA_ProxDend = g_CaHVA_Soma
+    g_CaLVA_ProxDend = 0 
+  
+  }
+
+
+// ************************************************************************** //
+// ************************************************************************** //
+// 2) Allocation
+// ************************************************************************** //
+// ************************************************************************** //
+
+  //---------------------------------------------------------------------------
+  // Axon
+  //---------------------------------------------------------------------------
+
+  proc init_Axon() { 
+	
+   	axon {
+	
+		insert nax
+            gbar_nax  = g_Nax_Axon
+            temp_nax  = temp_Nax_Axon
+		insert kv
+            gbar_kv   = g_KV_Axon
+            temp_kv   = temp_KV_Axon
+		insert km
+            gbar_km   = g_KM_Axon*(1E-4)
+            temp_km   = temp_KM_Axon
+            vhalfl_km = vHact_KM_Axon
+            vhalft_km = vHtau_KM_Axon
+	}
+
+	soma {
+ 		
+		insert nax
+            gbar_nax  = g_Nax_Axon
+            temp_nax  = temp_Nax_Axon
+        insert kv
+            gbar_kv   = g_KV_Axon
+            temp_kv   = temp_KV_Axon
+        insert km
+            gbar_km   = g_KM_Axon*(1E-4)
+            temp_km   = temp_KM_Axon
+            vhalfl_km = vHact_KM_Axon
+            vhalft_km = vHtau_KM_Axon
+  	}
+
+	for i=0,13 {
+	   dend1[i]  {
+		insert nax	
+                gbar_nax = g_Nax_Axon
+				temp_nax = temp_Nax_Axon
+		insert kv	
+                gbar_kv  = g_KV_Axon
+				temp_kv  = temp_KV_Axon
+	   	insert km 	
+                gbar_km = g_KM_Axon*(1E-4)
+		  		temp_km = temp_KM_Axon
+		  		vhalfl_km = vHact_KM_Axon
+		  		vhalft_km = vHtau_KM_Axon
+	   }
+	}
+  }
+
+  //---------------------------------------------------------------------------
+  // Soma
+  //---------------------------------------------------------------------------
+
+  proc init_Soma() {	
+	
+	for i=14,27 {
+		dend1[i] {
+			
+            insert na 	
+                gbar_na = g_Na_Soma
+                temp_na = temp_Na_Soma
+
+            insert nap	
+                gbar_nap = g_Nap_Soma * (1E-4)
+
+            insert kv 	
+                gbar_kv = g_KV_Soma
+                temp_kv = temp_KV_Soma
+
+            insert km 	
+                gbar_km   = g_KM_Soma*(1E-4)
+                temp_km   = temp_KM_Soma
+                vhalfl_km = vHact_KM_Soma
+                vhalft_km = vHtau_KM_Soma
+
+            insert kap	
+                gkabar_kap = g_KAprox_Soma*(1E-4)
+                temp_kap   = temp_KA_Soma
+
+            insert kad    
+                gkabar_kad = g_KAdist_Soma*(1E-4)
+                temp_kad   = temp_KA_Soma
+
+            insert kBK 	
+                gpeak_kBK = g_KBK_Soma*(1E-4)
+
+            insert ca 	
+                gbar_ca = g_CaHVA_Soma
+                temp_ca = temp_Ca_Soma
+
+            insert it2 	
+                gcabar_it2 = g_CaLVA_Soma*(1E-4)
+
+            insert hcn1		
+            insert hcn2
+
+		   // HCN Parameter
+            gpeak_hcn1 = g_HCN_Soma*(1E-4)*pHCN1_Soma
+            gpeak_hcn2 = g_HCN_Soma*(1E-4)*(1-pHCN1_Soma)
+				
+            Vrev_hcn1  = Vrev_HCN_Soma
+            Vrev_hcn2  = Vrev_HCN_Soma
+			
+            vhakt_hcn1 = Vhakt_HCN_Soma
+            vhakt_hcn2 = Vhakt_HCN_Soma
+		
+            k_hcn1     = k_HCN_Soma
+            k_hcn2     = k_HCN_Soma
+			
+            vhtau_hcn1 = Vhtau_HCN_Soma
+            vhtau_hcn2 = Vhtau_HCN_Soma
+			
+            temp_hcn1  = temp_HCN_Soma
+            temp_hcn2  = temp_HCN_Soma
+		
+            a0t_hcn1   = a0t_hcn1_Soma
+            a0t_hcn2   = a0t_hcn2_Soma
+		} 
+	}
+  }
+
+  //---------------------------------------------------------------------------
+  // Dendrites 
+  //---------------------------------------------------------------------------
+
+  proc init_Dend() {local dis,ratio,lD,NaTemp,KaTemp,HcnTemp,dif,y0_HCN,A_HCN
+		
+	access dend1[21]	
+	distance()		//measuring distance starting at the soma
+	
+	ld=0
+	
+   	for i=28,1090 {		//determine maximal length of the dendrite
+    	  dend1[i] {		
+    	  	dis=distance(.5)
+    	  	if (lD < dis) lD = dis
+    	  	}
+    	 }
+		
+    // calculate HCN distribution parameter
+   		
+  	dif    = g_HCN_DendEnd - g_HCN_DendStart
+  	A_HCN  = dif / ( (exp(lD/HCN_DendLambda)) - 1)
+  	y0_HCN = g_HCN_DendStart - A_HCN
+
+    // All Dendriten 
+			
+	for i=28,1090 {
+	  dend1[i] {
+	  	dis=distance(.5)
+	  	
+	  	g_pas=g_pas*spinescale   
+		cm=cm_Dend_Dist	
+             
+         // all uniform distributions
+
+        insert km   
+            gbar_km = g_KM_DistDend*(1E-4) //distal, proximal see below
+            temp_km = temp_KM_Axon
+            vhalfl_km = vHact_KM_Dend
+            vhalft_km = vHtau_KM_Dend	
+
+        insert kBK  
+            gpeak_kBK = g_KBK_Dend*(1E-4)*spinescale
+
+        insert ca
+            gbar_ca = g_CaHVA_DistDend*spinescale
+            temp_ca = temp_Ca_Dend
+
+        insert it2
+            gcabar_it2 = g_CaLVA_DistDend*(1E-4)*spinescale
+	     
+	     //Na channel basal
+		     
+	     	insert na
+	     	  NaTemp = g_Na_BasDendStart - dis * Na_BasRedFaktor
+	     	  if (NaTemp < 0) NaTemp=0 
+	     	  gbar_na = NaTemp*spinescale
+	     	    temp_na = temp_Na_Dend
+	     	  // Der Spinescale muss aus den prox. entfernt werden
+	     		     
+	     //KV channel
+	     	
+	     	insert kv   
+	     	  dif = (g_KV_DendStart-g_KV_DendEnd)
+	     	  gbar_kv = g_KV_DendEnd + ( dif * exp (-dis/KV_DendDecFac))	
+		  if (gbar_kv < 0) gbar_kv=0
+		  gbar_kv = gbar_kv * spinescale
+		    temp_kv = temp_KV_Dend	     
+		     
+	     //KA channels basal
+		       
+		insert kap
+		insert kad
+		  KaTemp = g_KA_BasDendStart + dis * KA_BasIncFaktor
+		  
+		  if (KaTemp>g_KA_Max) {   
+			KaTemp = g_KA_Max
+		  }		
+		  
+		  ratio = KA_ProRed * dis   // share distal/proximal KA type
+		  if (ratio < 0) ratio = 0
+		  if (ratio > 1) ratio = 1	
+		
+		  gkabar_kad = KaTemp*ratio*(1E-4)*spinescale
+		  gkabar_kap = KaTemp*(1-ratio)*(1E-4)*spinescale
+							
+		    temp_kap = temp_KA_Dend
+		    temp_kad = temp_KA_Dend
+		
+	     //HCN 
+		insert hcn1	
+		insert hcn2
+ 			
+		HcnTemp = y0_HCN+A_HCN*exp(dis / HCN_DendLambda)
+		HcnTemp = HcnTemp*(1E-4)*spinescale
+  			
+		gpeak_hcn1 = HcnTemp*pHCN1_Dend
+		gpeak_hcn2 = HcnTemp*(1-pHCN1_Dend)
+  			
+		Vrev_hcn1 = Vrev_HCN_Dend
+		Vrev_hcn2 = Vrev_HCN_Dend
+  			
+		vhakt_hcn1 = Vhakt_HCN_Dend
+		vhakt_hcn2 = Vhakt_HCN_Dend
+  			
+		k_hcn1 = k_HCN_Dend
+		k_hcn2 = k_HCN_Dend
+  			
+		vhtau_hcn1 = Vhtau_HCN_Dend
+		vhtau_hcn2 = Vhtau_HCN_Dend
+		
+		temp_hcn1 = temp_HCN_Dend
+		temp_hcn2 = temp_HCN_Dend
+	  
+	  	a0t_hcn1 = a0t_hcn1_Dend
+		a0t_hcn2 = a0t_hcn2_Dend
+	  }
+	}
+	
+    // apical dendrites, overwrites the values of 'all dendrites' from above
+		
+	forsec ApikalDend {	
+		     
+	     dis=distance(.5)
+	     
+         gbar_na = g_Na_ApiDendDist*spinescale  
+	     
+		ratio = KA_ProRed * dis   // share distal/proximal KA type
+		if (ratio < 0) ratio = 0
+		if (ratio > 1) ratio = 1	
+  			
+		gkabar_kad = g_KA_ApiDend*ratio*(1E-4)*spinescale
+		gkabar_kap = g_KA_ApiDend*(1-ratio)*(1E-4)*spinescale
+	}  
+	
+	
+    // the 1st 100 um of the apical trunk 
+    // overwrites the values from above / removes spinescale
+	
+	for i=28,32 {
+	  dend1[i] {
+		g_pas=g_pas/spinescale
+		cm=cm_Dend_Prox
+						
+		
+	  	gbar_km = g_KM_ProxDend*(1E-4)
+	  	gpeak_kBK = g_KBK_Dend*(1E-4)
+	  	gbar_ca = g_CaHVA_ProxDend
+	  	gcabar_it2 = g_CaLVA_ProxDend*(1E-4)
+	  	
+	  	
+	  	gbar_na = g_Na_ApiDendProx
+	  	gbar_kv = gbar_kv / spinescale
+	  	gkabar_kap = gkabar_kap / spinescale
+	  	gkabar_kad = gkabar_kad / spinescale
+	  	gpeak_hcn1 = gpeak_hcn1 / spinescale
+	  	gpeak_hcn2 = gpeak_hcn2 / spinescale
+	   }
+	}
+		
+	for i=43,47 {
+	  dend1[i] {
+		g_pas=g_pas/spinescale
+		cm=cm_Dend_Prox
+					
+	  	gbar_km = g_KM_ProxDend*(1E-4)
+	  	gpeak_kBK = g_KBK_Dend*(1E-4)
+	  	gbar_ca = g_CaHVA_ProxDend
+	  	gcabar_it2 = g_CaLVA_ProxDend*(1E-4)
+		
+	
+	  	gbar_na = g_Na_ApiDendProx
+	  	gbar_kv = gbar_kv / spinescale
+	  	gkabar_kap = gkabar_kap / spinescale
+	  	gkabar_kad = gkabar_kad / spinescale
+	  	gpeak_hcn1 = gpeak_hcn1 / spinescale
+	  	gpeak_hcn2 = gpeak_hcn2 / spinescale
+	  }
+	}
+		
+	for i=71,72 {
+	  dend1[i] {
+		g_pas=g_pas/spinescale
+		cm=cm_Dend_Prox
+	
+	  	gbar_km = g_KM_ProxDend*(1E-4)
+	  	gpeak_kBK = g_KBK_Dend*(1E-4)
+	  	gbar_ca = g_CaHVA_ProxDend
+	  	gcabar_it2 = g_CaLVA_ProxDend*(1E-4)
+		  	
+	  	
+	  	gbar_na = g_Na_ApiDendProx
+	  	gbar_kv = gbar_kv / spinescale
+	  	gkabar_kap = gkabar_kap / spinescale
+	  	gkabar_kad = gkabar_kad / spinescale
+	  	gpeak_hcn1 = gpeak_hcn1 / spinescale
+	  	gpeak_hcn2 = gpeak_hcn2 / spinescale
+	  }
+	}
+
+    // the 1st 20 um of the basals 
+    // overwrites the values from above / removes spinescale
+		
+	for i=777,778 {
+	  dend1[i] {
+		g_pas=g_pas/spinescale 
+		cm=cm_Dend_Prox
+	
+	  	gbar_km = g_KM_ProxDend*(1E-4)
+	  	gpeak_kBK = g_KBK_Dend*(1E-4)
+	  	gbar_ca = g_CaHVA_ProxDend
+	  	gcabar_it2 = g_CaLVA_ProxDend*(1E-4)
+	  	
+	  	gbar_na = gbar_na / spinescale
+	  	gbar_kv = gbar_kv / spinescale
+	  	gkabar_kap = gkabar_kap / spinescale
+	  	gkabar_kad = gkabar_kad / spinescale
+	  	gpeak_hcn1 = gpeak_hcn1 / spinescale
+	  	gpeak_hcn2 = gpeak_hcn2 / spinescale
+	  
+	  }
+	}
+		
+	for i=808,810 {
+	  dend1[i] {
+		g_pas=g_pas/spinescale
+		cm=cm_Dend_Prox
+	
+	  	gbar_km = g_KM_ProxDend*(1E-4)
+	  	gpeak_kBK = g_KBK_Dend*(1E-4)
+	  	gbar_ca = g_CaHVA_ProxDend
+	  	gcabar_it2 = g_CaLVA_ProxDend*(1E-4)
+	  	
+	  	gbar_na = gbar_na / spinescale
+	  	gbar_kv = gbar_kv / spinescale
+	  	gkabar_kap = gkabar_kap / spinescale
+	  	gkabar_kad = gkabar_kad / spinescale
+	  	gpeak_hcn1 = gpeak_hcn1 / spinescale
+	  	gpeak_hcn2 = gpeak_hcn2 / spinescale
+	  
+	  }
+	}
+	
+	for i=923,924 {
+	  dend1[i] {
+		g_pas=g_pas/spinescale
+		cm=cm_Dend_Prox
+	
+	  	gbar_km = g_KM_ProxDend*(1E-4)
+	  	gpeak_kBK = g_KBK_Dend*(1E-4)
+	  	gbar_ca = g_CaHVA_ProxDend
+	  	gcabar_it2 = g_CaLVA_ProxDend*(1E-4)
+	  	
+	  	gbar_na = gbar_na / spinescale
+	  	gbar_kv = gbar_kv / spinescale
+	  	gkabar_kap = gkabar_kap / spinescale
+	  	gkabar_kad = gkabar_kad / spinescale
+	  	gpeak_hcn1 = gpeak_hcn1 / spinescale
+	  	gpeak_hcn2 = gpeak_hcn2 / spinescale
+	  
+	  }
+	}
+	
+	for i=957,959 {
+	  dend1[i] {
+		g_pas=g_pas/spinescale
+		cm=cm_Dend_Prox
+		
+	  	gbar_km = g_KM_ProxDend*(1E-4)
+	  	gpeak_kBK = g_KBK_Dend*(1E-4)
+	  	gbar_ca = g_CaHVA_ProxDend
+	  	gcabar_it2 = g_CaLVA_ProxDend*(1E-4)
+	  	
+	  	gbar_na = gbar_na / spinescale
+	  	gbar_kv = gbar_kv / spinescale
+	  	gkabar_kap = gkabar_kap / spinescale
+	  	gkabar_kad = gkabar_kad / spinescale
+	  	gpeak_hcn1 = gpeak_hcn1 / spinescale
+	  	gpeak_hcn2 = gpeak_hcn2 / spinescale
+	  
+	  }
+	}
+	
+	for i=1006,1007 {
+	  dend1[i] {
+		g_pas=g_pas/spinescale
+		cm=cm_Dend_Prox
+		
+  		gbar_km = g_KM_ProxDend*(1E-4)
+	  	gpeak_kBK = g_KBK_Dend*(1E-4)
+	  	gbar_ca = g_CaHVA_ProxDend
+	  	gcabar_it2 = g_CaLVA_ProxDend*(1E-4)
+	  	
+	  	gbar_na = gbar_na / spinescale
+	  	gbar_kv = gbar_kv / spinescale
+	  	gkabar_kap = gkabar_kap / spinescale
+	  	gkabar_kad = gkabar_kad / spinescale
+  		gpeak_hcn1 = gpeak_hcn1 / spinescale
+	  	gpeak_hcn2 = gpeak_hcn2 / spinescale
+	  
+	  }
+	}
+		
+	for i=1055,1058 {
+	  dend1[i] {
+		g_pas=g_pas/spinescale
+		cm=cm_Dend_Prox
+		
+  		gbar_km = g_KM_ProxDend*(1E-4)
+	  	gpeak_kBK = g_KBK_Dend*(1E-4)
+	  	gbar_ca = g_CaHVA_ProxDend
+	  	gcabar_it2 = g_CaLVA_ProxDend*(1E-4)
+	  	
+	  	gbar_na = gbar_na / spinescale
+  		gbar_kv = gbar_kv / spinescale
+  		gkabar_kap = gkabar_kap / spinescale
+	  	gkabar_kad = gkabar_kad / spinescale
+	  	gpeak_hcn1 = gpeak_hcn1 / spinescale
+  		gpeak_hcn2 = gpeak_hcn2 / spinescale
+	
+	  }
+	}
+		
+	for i=1059,1060 {
+	  dend1[i] {
+		g_pas=g_pas/spinescale
+		cm=cm_Dend_Prox
+	
+	  	gbar_km = g_KM_ProxDend*(1E-4)
+	  	gpeak_kBK = g_KBK_Dend*(1E-4)
+  		gbar_ca = g_CaHVA_ProxDend
+	  	gcabar_it2 = g_CaLVA_ProxDend*(1E-4)
+	  	
+	  	gbar_na = gbar_na / spinescale
+	  	gbar_kv = gbar_kv / spinescale
+	  	gkabar_kap = gkabar_kap / spinescale
+	  	gkabar_kad = gkabar_kad / spinescale
+  		gpeak_hcn1 = gpeak_hcn1 / spinescale
+	  	gpeak_hcn2 = gpeak_hcn2 / spinescale
+	
+	  }
+	}
+		
+	for i=1067,1069 {
+	  dend1[i] {
+		g_pas=g_pas/spinescale
+		cm=cm_Dend_Prox
+		
+		gbar_km = g_KM_ProxDend*(1E-4)
+		gpeak_kBK = g_KBK_Dend*(1E-4)
+	  	gbar_ca = g_CaHVA_ProxDend
+	 	gcabar_it2 = g_CaLVA_ProxDend*(1E-4)
+	  	
+	  	gbar_na = gbar_na / spinescale
+	  	gbar_kv = gbar_kv / spinescale
+	  	gkabar_kap = gkabar_kap / spinescale
+	  	gkabar_kad = gkabar_kad / spinescale
+	 	gpeak_hcn1 = gpeak_hcn1 / spinescale
+	  	gpeak_hcn2 = gpeak_hcn2 / spinescale
+	
+	  }
+	} 
+  }
+
+//---------------------------------------------------------------------------
+// reversal and start potential    
+//---------------------------------------------------------------------------
+
+  proc init_Volt() {
+	
+	forall {	
+		vshift_na=-10 //provides AP threshold of ~ -60 mV at soma 
+		vshift_nax=-10
+			
+		ena = 55
+ 		ek = -105
+ 		e_pas = v_init
+
+		taur_cad = 100  
+	}
+  }
+
+

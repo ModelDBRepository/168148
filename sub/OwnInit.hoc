@@ -1,0 +1,60 @@
+//######################################
+//  						    
+//  OwnInit.hoc
+//  -------------
+//
+// Replaces the standard init routine
+//  							
+//  Author: Konstantin Stadler
+//  Version: 20131108
+//  							
+//######################################
+//
+//based on the example in chapter 7 of the NEURON book
+//Must be the last hoc file load at the simulation (the last init() in this file will be used by NEURON)
+
+
+objref OwnInitCtrl
+
+objref InitState, InitStateFile
+
+
+proc init() { local dtsav, temp    
+ 	print "Custom init routine...."
+ 	
+ 	dtInit = 10
+ 	tInit = -10000
+ 	
+ 	finitialize(v_init)
+ 	t = -15000
+ 	dtsav = dt
+ 	dt = dtInit
+ 		// if cvode is on, turn it off to do large fixed step
+ 	temp = cvode.active()
+ 	
+ 	if (temp!=0) { cvode.active(0) }
+ 	
+ 	
+ 	
+ 	while (t<tInit) {
+ 		fadvance()
+ 		//OwnInitCtrl.x(VecCounter) = v(.5)   //saves...
+ 		//VecCounter = VecCounter + 1//... the init advance for checking
+ 		}
+ 	// restore cvode if necessary
+ 	if (temp!=0) { cvode.active(1) }
+ 	
+ 	dt = dtsav
+ 	t = 0
+ 	if (cvode.active()) {
+ 		cvode.re_init()
+ 	 } else {
+ 		fcurrent()
+ 		}
+ 	frecord_init()
+ 	
+ 	print "Custom init routine finished\n"
+ 	
+}
+
+

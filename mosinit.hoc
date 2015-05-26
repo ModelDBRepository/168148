@@ -1,0 +1,93 @@
+//######################################
+//  						    
+//  mosinit.hoc
+//  -------------
+//
+//  Runs the model with the assumptions underlying fig 1b from Reetz et al 2014 (TODO insert doi)
+//  
+//  Data are stored in 
+//
+//  - CCctrl.txt (native neuron - traces)
+//  - CCctrl_AP.txt (native neuron - FI curve)
+//  - CCpkc.txt  (CCIV with PKC induced changes of channel properties)
+//  - CCpkc_AP.txt (CCIV with PKC induced changes of channel properties- FI curve)
+//
+//  Fig 1b. shows a subset of traces from both trace files.
+//
+//  NB: The model runs for about two hours
+//  							
+//  Author: Konstantin Stadler
+//  Version: 20131108
+//  							
+//######################################
+//
+// 
+
+// Init the neuron:
+//      - load geometry
+//      - assign cell/channel parameter
+//      - load init/util functions from ./sub
+
+xopen("LayerVrun.hoc")
+
+_OverallStartTime = ParaCont.time()
+// opens most used windows to visualize the model run
+// inits a pointprocessmanager on the default section
+// set Tstop and dt
+
+start(2000,0.1)
+
+// extra code for ModelDB auto-launch/demo
+
+IStim = new IClamp(.5)
+IStim.del=50
+IStim.dur=1000
+IStim.amp= -0.25
+
+xpanel("Stadler et al. 2014")
+  xbutton("run simulation","run_simulation()")
+  xlabel("press above button to run 2 hour simulation")
+  xlabel("which recreates data for fig 1b")
+  xlabel("or explore the model with the gui:")
+  xvalue("IStim.del")
+  xvalue("IStim.dur")
+  xvalue("IStim.amp")
+  xlabel("vary amp from -.25 to 1.")
+  xbutton("switch to PKC","switch_to_PKC()")
+  xlabel("Note if you switch to PKC and want to go")
+  xlabel("back to normal then quit with below and restart")
+  xbutton("Quit","quit()")
+xpanel()
+
+proc run_simulation() {
+// run a CCIV with initial cell parameter
+
+RunNormal()
+
+// simulate channel modulation due to PKC and rerun CCIV
+
+RunPKC()
+
+_OverallEndTime = ParaCont.time()
+print "\n: Overall Execution time:", _OverallEndTime - _OverallStartTime
+
+}
+
+proc switch_to_PKC() {
+
+    // Redfactors and shift values for assumed PKC affect
+    //      RedFactor ... gpeak will be set to previous gpeak * redfactor
+    RedFactorHCN1 = 0.425 // Reduction Factor HCN1 channels (peak conductance)
+    RedFactorKM   = 0.76  // Reduction Factor M channels (peak conductance)
+    RedFactorBK   = 0.5   // Reduction of BK channels
+    ShiftVhNap    = -2     // shift of VhNap in mV (neg val here hyperpolarises Vh)
+
+    // Assign new values
+    forall gbar_km = gbar_km * RedFactorKM
+
+    forsec SomaDend gpeak_hcn1 = gpeak_hcn1 * RedFactorHCN1
+    forsec SomaDend gpeak_kBK  = gpeak_kBK  * RedFactorBK
+    forsec Soma     Vh_nap     = Vh_nap     + ShiftVhNap
+
+    print "PKC state set: quit and restart NEURON if desired to go back to Normal"
+}

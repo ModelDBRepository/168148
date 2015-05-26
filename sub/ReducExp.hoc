@@ -1,0 +1,73 @@
+//######################################
+//  						    
+//  ReducExp.hoc
+//  -------------
+//
+// Experiments with reduced current densities/properties        
+//  							
+//  Author: Konstantin Stadler
+//  Version: 20131108
+//  							
+//######################################
+// 
+
+/*******************************************************************
+ **             Native                                           **
+*******************************************************************/
+
+proc RunNormal() {
+    // runs the CCIV for the initial cell, requires tstop set to 2000 
+
+    StartTime = ParaCont.time()
+
+    print "\n\n *********************************************"
+    print "\n CCIV with normal cell parameter...."
+
+    
+    CCIV(50, 1000, -0.25, 20, 0.05, 1, "CCctrl.txt", "CCctrl_AP.txt")
+
+    EndTime = ParaCont.time()
+    print "\n: Execution time:", EndTime - StartTime
+    print "\n\n Layer V Neuron at initial state"
+
+}
+
+/*******************************************************************
+ **             PKC reduction                                     **
+*******************************************************************/
+
+proc RunPKC() {
+    // runs the CCIV for the PKC modulation, requires tstop set to 2000 
+    
+    StartTime = ParaCont.time()
+    
+    print "\n\n *********************************************"
+    print "\n CCIV with PKC modified cell parameter...."
+
+
+    // Redfactors and shift values for assumed PKC affect
+    //      RedFactor ... gpeak will be set to previous gpeak * redfactor
+    RedFactorHCN1 = 0.425 // Reduction Factor HCN1 channels (peak conductance)
+    RedFactorKM   = 0.76  // Reduction Factor M channels (peak conductance)
+    RedFactorBK   = 0.5   // Reduction of BK channels
+    ShiftVhNap    = -2     // shift of VhNap in mV (neg val here hyperpolarises Vh)
+
+    // Assign new values
+    forall gbar_km = gbar_km * RedFactorKM
+
+    forsec SomaDend gpeak_hcn1 = gpeak_hcn1 * RedFactorHCN1
+    forsec SomaDend gpeak_kBK  = gpeak_kBK  * RedFactorBK
+    forsec Soma     Vh_nap     = Vh_nap     + ShiftVhNap
+
+    // run CCIV
+    CCIV(50, 1000, -0.25, 20, 0.05, 1, "CCpkc.txt", "CCpkc_AP.txt")
+
+    // check run time
+    EndTime = ParaCont.time()
+    print "\n: Execution time:", EndTime - StartTime
+    print "\n\n Layer V Neuron at state after PKC channel modulation (NB: Reload model to reset to initial state)"
+    
+
+}
+
+
